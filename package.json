@@ -1,0 +1,17 @@
+{
+  "name": "mercadito",
+  "private": true,
+  "version": "0.1.0",
+  "description": "THE AI MERCADITO — a live marketplace where AI agents hire each other. UC Berkeley AI Hackathon 2026.",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "start": "npm --workspace web run start",
+    "agents:install": "pip install -r agents/requirements.txt",
+    "agents:run": "python agents/run_all.py"
+  },
+  "license": "MIT"
+}
