@@ -1,34 +1,36 @@
-# EL MERCADITO DE AI — Internet of Agents
-### Plan de ejecución para UC Berkeley AI Hackathon 2026 · Diego + Juan · 17 horas
+# THE AI MERCADITO — Internet of Agents
+### Execution plan for UC Berkeley AI Hackathon 2026 · Diego + Juan · 17 hours
+
+> **LANGUAGE RULE (mandatory):** Everything in this project MUST be written in English — all code, comments, variable/function/file names, commit messages, README, UI copy, agent prompts, Devpost submission, and any documentation. This applies to anything Claude Code generates and to anything the team writes. No Spanish anywhere in the deliverables.
 
 ---
 
-## 0. EL PITCH (memorízalo, lo van a decir 50 veces)
+## 0. THE PITCH (memorize it, you'll say it 50 times)
 
-> **El Mercadito de AI es un marketplace en vivo donde agentes de IA se contratan entre ellos.** Escribes una idea de app ("Airbnb para estacionamientos") y en segundos 4 agentes especialistas — UX, Backend, Growth y QA — la ven publicada, calculan su propio bid en tiempo real, y compiten visiblemente por el trabajo (precio, tiempo, confianza). El equipo ganador construye de verdad: el agente QA abre la app desplegada en un navegador real y la rompe a propósito; el agente Growth sale a la web real y consigue usuarios de prueba. Cuando un agente falla o pierde, no desaparece — se auto-diagnostica y vuelve a pujar mejorado, en vivo. Por debajo: Redis es la memoria compartida de la economía de agentes, Token Company liquida los pagos, Sentry es el sistema nervioso que detecta cuándo algo se rompe, Fetch.ai le da identidad autónoma real a cada agente, y todo el código — del backend al pitch de Devpost — lo escribió Claude Code.
+> **The AI Mercadito is a live marketplace where AI agents hire each other.** You type an app idea ("Airbnb for parking spots") and within seconds 4 specialist agents — UX, Backend, Growth, and QA — see it posted, calculate their own bid in real time, and visibly compete for the work (price, time, confidence). The winning team actually builds it: the QA agent opens the deployed app in a real browser and deliberately breaks it; the Growth agent goes out to the real web and acquires test users. When an agent fails or loses, it doesn't disappear — it self-diagnoses and bids again, improved, live. Under the hood: Redis is the shared memory of the agent economy, Token Company settles the payments, Sentry is the nervous system that detects when something breaks, Fetch.ai gives each agent a real autonomous identity, and all the code — from the backend to the Devpost pitch — was written by Claude Code.
 
-**Track principal:** Ddoski's Toolbox (developer tools / automatización de workflows).
-**Estrategia de premios:** no competimos por UN track — apilamos premios de sponsors. Ver sección 2.
+**Primary track:** Ddoski's Toolbox (developer tools / workflow automation).
+**Prize strategy:** we don't compete for ONE track — we stack sponsor prizes. See section 2.
 
 ---
 
-## 1. ARQUITECTURA TÉCNICA
+## 1. TECHNICAL ARCHITECTURE
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  FRONTEND (Next.js + Tailwind + shadcn/ui) → Vercel          │
-│  - Input: "describe tu app"                                  │
+│  - Input: "describe your app"                                │
 │  - Live bidding war (Server-Sent Events ← Redis pub/sub)     │
-│  - Token ledger visual + "lessons learned" feed              │
-│  - Approve-bid buttons (humano en el loop, como Sai)         │
+│  - Visual token ledger + "lessons learned" feed              │
+│  - Approve-bid buttons (human in the loop, like Sai)         │
 └───────────────────────────┬────────────────────────────────┘
                              │ SSE / REST
 ┌───────────────────────────▼────────────────────────────────┐
 │  ORCHESTRATOR (Node/TS, API routes)                          │
-│  - Publica "JobPosted" en Redis                               │
-│  - Recibe bids, decide ranking, publica "BidWon"              │
-│  - Sentry SDK envuelve cada función crítica                   │
-│  - Dispara retry/self-improve cuando Sentry captura error     │
+│  - Publishes "JobPosted" to Redis                             │
+│  - Receives bids, decides ranking, publishes "BidWon"         │
+│  - Sentry SDK wraps every critical function                   │
+│  - Triggers retry/self-improve when Sentry captures an error  │
 └──────┬───────────┬───────────┬───────────┬───────────────────┘
        │            │           │           │
    ┌───▼───┐   ┌────▼────┐ ┌────▼────┐ ┌────▼────┐
@@ -42,352 +44,378 @@
        └────────────┴─────┬─────┴───────────┘
                            ▼
               ┌────────────────────────┐
-              │ REDIS (estado vivo +    │
-              │ memoria vectorial de    │
-              │ lecciones por agente)   │
+              │ REDIS (live state +     │
+              │ vector memory of        │
+              │ lessons per agent)      │
               └────────────────────────┘
                            │
               ┌────────────▼────────────┐
-              │ TOKEN COMPANY (ledger de│
-              │ pagos del job ganado)   │
+              │ TOKEN COMPANY (ledger   │
+              │ of payments for won job)│
               └─────────────────────────┘
 ```
 
-**Stack concreto:**
-- Frontend: Next.js 14 App Router + TypeScript + Tailwind + shadcn/ui → deploy en Vercel (deploys de 60s, dale un dominio público desde la hora 1).
-- Tiempo real: Server-Sent Events desde una API route que hace `SUBSCRIBE` al canal Redis `marketplace:bids`. Es más simple que WebSockets y suficiente para un demo de 5 min.
-- Redis: pide credenciales al booth de Redis (el sponsor) apenas empiece el evento — si no las tienes en 30 min, usa Upstash Redis (free tier, REST API, listo en 2 min) como fallback y no pierdas tiempo esperando.
-- Agentes persona (UX/Backend/Growth/QA): microservicio Python con `uagents` (Fetch.ai). Cada uno es un `Agent()` real con address propio, expone un handler `on_message(JobPosted)` que llama a Claude y responde `BidSubmitted`.
-- Claude: **Haiku 4.5** para todo lo "conversacional" (bids, auto-crítica, pitches de agentes) — es barato y rápido, así no quemas el budget de $25. **Claude Code** (tu propia sesión, no el budget de $25) construye el 90% del repo. Una sola llamada puntual a Sonnet en vivo durante el demo para el "momento mejora" — nada más.
-- Sentry: `@sentry/node` envolviendo el orchestrator y la app generada. Cada bid perdido o excepción se reporta con tags `agent_id`, `bid_id`, `round`.
-- Sai / SimuLang: el agente QA corre un script TypeScript con `@simular-ai/simulib-js` contra la URL real desplegada, hace click-through, toma screenshot, regresa bugs estructurados.
-- Browserbase + Stagehand: el agente Growth corre una tarea real de navegador (`@browserbasehq/stagehand`) — llenar el formulario de signup de la app desplegada con 3 "usuarios" o scrapear un directorio público como "leads".
+**Concrete stack:**
+- Frontend: Next.js 14 App Router + TypeScript + Tailwind + shadcn/ui → deploy to Vercel (60s deploys, give it a public domain from hour 1).
+- Real-time: Server-Sent Events from an API route that `SUBSCRIBE`s to the Redis channel `marketplace:bids`. Simpler than WebSockets and enough for a 5-min demo.
+- Redis: request credentials at the Redis booth (the sponsor) as soon as the event starts — if you don't have them in 30 min, use Upstash Redis (free tier, REST API, ready in 2 min) as a fallback and don't waste time waiting.
+- Persona agents (UX/Backend/Growth/QA): Python microservice with `uagents` (Fetch.ai). Each one is a real `Agent()` with its own address, exposes an `on_message(JobPosted)` handler that calls Claude and replies `BidSubmitted`.
+- Claude: **Haiku 4.5** for everything "conversational" (bids, self-critique, agent pitches) — it's cheap and fast, so you don't burn the $25 budget. **Claude Code** (your own session, not the $25 budget) builds 90% of the repo. A single one-off Sonnet call live during the demo for the "improvement moment" — nothing more.
+- Sentry: `@sentry/node` wrapping the orchestrator and the generated app. Every lost bid or exception is reported with tags `agent_id`, `bid_id`, `round`.
+- Sai / SimuLang: the QA agent runs a TypeScript script with `@simular-ai/simulib-js` against the real deployed URL, does click-through, takes a screenshot, returns structured bugs.
+- Browserbase + Stagehand: the Growth agent runs a real browser task (`@browserbasehq/stagehand`) — filling out the deployed app's signup form with 3 "users" or scraping a public directory as "leads".
 
 ---
 
-## 2. MAPA DE SPONSORS → PREMIOS (esto es tu hoja de ruta de puntos)
+## 2. SPONSOR → PRIZE MAP (this is your scoring roadmap)
 
-| Sponsor | Qué hace en El Mercadito de AI | Qué exige el premio (confirmado en Devpost) | Acción |
+| Sponsor | What it does in The AI Mercadito | What the prize requires (confirmed on Devpost) | Action |
 |---|---|---|---|
-| **Anthropic / Claude Code** | Motor de razonamiento de todos los agentes + construye el 90% del repo | Premio: Claude Code, dinero, merch. Criterio: profundidad de investigación, ingenio, creatividad — proyectos que "shift what's possible" en salud/educación/oportunidad económica. | Enmarca el pitch: El Mercadito de AI democratiza poder construir software (oportunidad económica) sin saber programar. |
-| **Redis** | Estado vivo del marketplace + memoria de "lecciones" de cada agente | Criterio explícito: *"Using Redis Beyond Caching — Redis Iris para memoria de agentes, vector search, context retrieval"* + creatividad + implementación técnica. | No uses Redis solo como caché. Guarda embeddings de cada bid perdido/ganado y haz que el agente los recupere antes de re-pujar. Pregunta en su booth específicamente por **"Redis Iris"** — lo mencionan por nombre en el criterio y no tengo el detalle exacto de su API, confírmalo ahí mismo. |
-| **Sentry** | Observabilidad de cada agente + dispara el "auto-mejora" | Premio: Nintendo Switch 2 por persona + entrevista garantizada. Bonus explícito por usar observability/error monitoring. | No lo metas decorativo. El error real que captura Sentry es literalmente el que dispara el retry — eso es "pensar en reliability desde el día uno". |
-| **Browserbase** | Agente Growth navega la web real | Debe usar: browsers / search / fetch / **Stagehand** / Browse CLI. | Usa Stagehand explícitamente, es la opción más rápida de integrar. |
-| **Sai / Simular AI** | Agente QA hace control de calidad real en un navegador | Premio: paquete de $500. Exige usar Sai, SimuLang o Agent S de forma **significativa** (no mención de token) + postear en X/LinkedIn con el hashtag y tag a la cuenta oficial. | Esto es casi gratis: tienen workshop a las 12:00–1:00pm (Floor 2, Ddoski's Classroom) — vayan, consigan créditos, y NO se les olvide el post social, es literal requisito de premio. |
-| **Fetch.ai** | Identidad autónoma de cada agente persona | No encontré el brief específico de este hackathon online — visiten su booth en la primera hora y pregunten directo por el challenge de este evento. | Igual úsenlo: con `uagents` (Python) ya es legítimo aunque no se publique el detalle exacto del premio. |
-| **The Token Company** | Liquidación de pagos del job ganado | Mismo caso — no encontré brief público. | Visiten booth hora 1. Si su SDK no se integra rápido, mantengan el ledger interno (Redis) con el mismo look visual como fallback — la demo no puede depender de esto. |
-| **Agentspan** | (mencionado en criterios, no central a tu idea) | Premio: Ray-Ban Meta. Criterio: cómo usaron Agentspan + qué tan integrado está en el demo. | Descártalo salvo que en el booth les muestren algo que se integre en <30 min. No vale la pena forzarlo. |
+| **Anthropic / Claude Code** | Reasoning engine for all agents + builds 90% of the repo | Prize: Claude Code, money, merch. Criteria: research depth, ingenuity, creativity — projects that "shift what's possible" in health/education/economic opportunity. | Frame the pitch: The AI Mercadito democratizes building software (economic opportunity) without knowing how to code. |
+| **Redis** | Live marketplace state + memory of each agent's "lessons" | Explicit criteria: *"Using Redis Beyond Caching — Redis Iris for agent memory, vector search, context retrieval"* + creativity + technical implementation. | Don't use Redis just as a cache. Store embeddings of each lost/won bid and have the agent retrieve them before re-bidding. Ask at their booth specifically about **"Redis Iris"** — they mention it by name in the criteria and I don't have the exact API detail, confirm it right there. |
+| **Sentry** | Observability of each agent + triggers the "self-improve" | Prize: Nintendo Switch 2 per person + guaranteed interview. Explicit bonus for using observability/error monitoring. | Don't add it decoratively. The real error Sentry captures is literally the one that triggers the retry — that's "thinking about reliability from day one". |
+| **Browserbase** | Growth agent navigates the real web | Must use: browsers / search / fetch / **Stagehand** / Browse CLI. | Use Stagehand explicitly, it's the fastest option to integrate. |
+| **Sai / Simular AI** | QA agent does real quality control in a browser | Prize: $500 package. Requires using Sai, SimuLang, or Agent S in a **meaningful** way (not a token mention) + posting on X/LinkedIn with the hashtag and tagging the official account. | This is almost free: they have a workshop at 12:00–1:00pm (Floor 2, Ddoski's Classroom) — go, get credits, and DON'T forget the social post, it's literally a prize requirement. |
+| **Fetch.ai** | Autonomous identity of each persona agent | I couldn't find the specific brief for this hackathon online — visit their booth in the first hour and ask directly about this event's challenge. | Use it anyway: with `uagents` (Python) it's already legitimate even if the exact prize detail isn't published. |
+| **The Token Company** | Settlement of payments for the won job | Same case — I couldn't find a public brief. | Visit booth hour 1. If their SDK doesn't integrate quickly, keep the internal ledger (Redis) with the same visual look as a fallback — the demo can't depend on this. |
+| **Agentspan** | (mentioned in criteria, not central to your idea) | Prize: Ray-Ban Meta. Criteria: how you used Agentspan + how integrated it is in the demo. | Drop it unless they show you something at the booth that integrates in <30 min. Not worth forcing it. |
 
-**Regla de oro:** visiten los booths de Fetch.ai y Token Company en la **primera hora** del evento — son los dos sponsors donde no tengo el brief exacto y ustedes sí lo pueden conseguir en 5 minutos hablando con un humano.
-
----
-
-## 3. PRESUPUESTO DE CLAUDE API ($25)
-
-Ese budget es aparte de Claude Code (que ustedes ya tienen como herramienta de desarrollo). Está para las llamadas que la app hace **en vivo** durante el demo y mientras prueban.
-
-- Usa **Haiku 4.5** para: generación de bids, auto-crítica al perder/fallar, texto de pitch de cada agente. Es barato, es rápido, y nadie nota la diferencia de calidad en un texto de 2 líneas de "bid".
-- Reserva **Sonnet** solo para: el parche de código real que se ve en el "momento wow" (una llamada, no un loop).
-- Revisen el dashboard de uso en `console.anthropic.com` cada 2-3 horas — no esperen a quedarse sin crédito a la mitad del demo.
-- Para las "rondas" de bidding durante pruebas, cachéen resultados en vez de regenerar — no necesitan 50 llamadas reales para probar que la animación de la UI funciona, usen datos fake la mayoría del tiempo y solo prueben con Claude real cuando estén validando el comportamiento del agente.
+**Golden rule:** visit the Fetch.ai and Token Company booths in the **first hour** of the event — they're the two sponsors where I don't have the exact brief and you can get it in 5 minutes talking to a human.
 
 ---
 
-## 4. DIVISIÓN DE TRABAJO (Diego + Juan)
+## 3. CLAUDE API BUDGET ($25)
 
-Son 2, así que la automatización con Claude Code no es opcional — es la única forma de cubrir todo. Paralelicen por capa, no por feature:
+That budget is separate from Claude Code (which you already have as a dev tool). It's for the calls the app makes **live** during the demo and while testing.
 
-- **Diego — "Cara visible"**: Frontend (Next.js, visualización de la bidding war, polish visual), Devpost submission, demo script, contacto con sponsors/booths.
-- **Juan — "Motor"**: Orchestrator, Redis, Sentry, uAgents (Fetch.ai), integraciones de Sai/Browserbase.
-
-Sincronicen cada 2 horas con un mensaje de 1 línea: "qué hice / qué sigue / qué me bloquea". No hagan daily standups de 15 minutos, pierden tiempo.
+- Use **Haiku 4.5** for: bid generation, self-critique on loss/failure, each agent's pitch text. It's cheap, fast, and nobody notices the quality difference on a 2-line "bid".
+- Reserve **Sonnet** only for: the real code patch shown in the "wow moment" (one call, not a loop).
+- Check the usage dashboard at `console.anthropic.com` every 2-3 hours — don't wait until you run out of credit mid-demo.
+- For the bidding "rounds" during testing, cache results instead of regenerating — you don't need 50 real calls to prove the UI animation works, use fake data most of the time and only test with real Claude when validating agent behavior.
 
 ---
 
-## 5. CRONOGRAMA — 17 HORAS
+## 4. WORK DIVISION — 2 PEOPLE, 2 AGENTS
 
-| Bloque | Duración | Qué hacen | Output |
+There are 2 coworkers on this project, and each one drives their own Claude Code agent. Automating with Claude Code isn't optional — it's the only way 2 people cover all 8 mega-prompts in 17 hours. **Parallelize by layer, not by feature**, so the two agents almost never touch the same files.
+
+### The two agents
+
+- **Diego Code — "The visible face" (frontend + go-to-market)**
+  Owns everything the judges see and read.
+  - Code surface: `/web` (Next.js, `<BidStream />`, bidding-war UI, token ledger table, visual polish), `/generated-app` UI.
+  - Non-code: Devpost submission, demo script + rehearsal, backup video, sponsor/booth contact, social posts (#SaiCal).
+
+- **Juan Code — "The engine" (backend + integrations)**
+  Owns everything under the hood.
+  - Code surface: `/orchestrator` (API routes, bidding engine, `generateBid`, SSE), Redis (state + pub/sub + vector memory), `/agents` (Fetch.ai uAgents), Sentry wiring + self-improve loop, Sai/SimuLang + Browserbase/Stagehand integrations, the `/generated-app` backend endpoints + `settleTokens()`.
+
+### Mega-prompt ownership
+
+| Mega-prompt | Primary owner | Notes / hand-off |
+|---|---|---|
+| #1 Scaffolding | **Juan Code** | Sets up the monorepo + env + Sentry skeleton. Diego Code waits for `/web` to exist, then takes it over. |
+| #2 Bidding engine + Redis + SSE | **Juan Code** (engine) + **Diego Code** (`<BidStream />` UI) | Contract = the SSE event JSON shape `{ price_tokens, eta_minutes, confidence, pitch }`. Agree on it first, then build in parallel. |
+| #3 Sentry + uAgents + self-improve loop | **Juan Code** | Diego Code only adds the round=2 "auto-improved" animation in the frontend. |
+| #4 Child app + token ledger | **Juan Code** (endpoints, Redis ledger, `settleTokens()`) + **Diego Code** (mini-app UI + Token Ledger table) | |
+| #5 QA Agent (Sai/SimuLang) | **Juan Code** | Diego Code renders the `qa:report` card + screenshot, and handles the #SaiCal social post. |
+| #6 Growth Agent (Browserbase/Stagehand) | **Juan Code** | Diego Code renders the `growth:report` card. |
+| #7 Visual polish | **Diego Code** | Juan Code is frozen here — no architecture changes during polish. |
+| #8 Devpost submission | **Diego Code** | Juan Code provides a 3-bullet "what I actually built" note so the sponsor integrations are described accurately. |
+
+### Coordination rules
+
+- **Interface-first:** before either agent starts a shared mega-prompt (#2, #4), lock the JSON event/contract shape. After that they build independently against the contract.
+- **No file collisions:** Juan Code stays in `/orchestrator`, `/agents`, and backend files; Diego Code stays in `/web` and UI components. Redis channel names and event schemas are the shared boundary, kept in one types file.
+- **Sync every 2 hours** with a 1-line message: "what I did / what's next / what's blocking me". No 15-minute standups.
+- **Commit discipline:** each agent commits its own layer with clear English messages so the two histories merge cleanly.
+
+---
+
+## 5. TIMELINE — 17 HOURS
+
+| Block | Duration | What you do | Output |
 |---|---|---|---|
-| H0–H0.5 | 30 min | Lock del pitch, crear repo GitHub, crear draft de submission en Devpost (vacío está bien, edítenlo después), visitar booths de Fetch.ai/Token Company/Redis para credenciales y briefs. | Repo + Devpost draft + credenciales |
-| H0.5–H2 | 1.5h | **Mega-prompt #1** (scaffolding) en Claude Code | App corriendo en local, deploy inicial a Vercel |
-| H2–H5 | 3h | **Mega-prompt #2** (motor de bidding + Redis + SSE + frontend de la guerra de bids) | El corazón visual del demo funcionando |
-| H5–H7 | 2h | **Mega-prompt #3** (Sentry + Fetch.ai uAgents + loop de auto-mejora) | El "momento wow" funcionando de forma confiable |
-| H7–H9 | 2h | **Mega-prompt #4** (app hija que los agentes "construyen" + ledger de Token Company o fallback) | Mini-app desplegada que los demás agentes pueden atacar |
-| H9–H11 | 2h | **Mega-prompt #5** (agente QA con Sai/SimuLang) + cumplir requisitos sociales del premio Sai (#SaiCal) | QA agent rompe la app de verdad |
-| H11–H13 | 2h | **Mega-prompt #6** (agente Growth con Browserbase/Stagehand) | Growth agent consigue "usuarios" reales |
-| H13–H14 | 1h | Comida / descanso real — no es opcional, van a tomar peores decisiones técnicas cansados | — |
-| H14–H15.5 | 1.5h | **Mega-prompt #7** (polish visual) + ensayo del demo + grabar video de respaldo | Demo ensayado 2 veces mínimo |
-| H15.5–H16.5 | 1h | **Mega-prompt #8** (Claude Code escribe la submission de Devpost) + checklist final | Submission enviado, NO a último minuto |
-| H16.5–H17 | 30 min | Buffer — arreglar lo que se rompió, respirar | — |
+| H0–H0.5 | 30 min | Lock the pitch, create GitHub repo, create a draft submission on Devpost (empty is fine, edit it later), visit the Fetch.ai/Token Company/Redis booths for credentials and briefs. | Repo + Devpost draft + credentials |
+| H0.5–H2 | 1.5h | **Mega-prompt #1** (scaffolding) in Claude Code | App running locally, initial deploy to Vercel |
+| H2–H5 | 3h | **Mega-prompt #2** (bidding engine + Redis + SSE + bidding war frontend) | The visual heart of the demo working |
+| H5–H7 | 2h | **Mega-prompt #3** (Sentry + Fetch.ai uAgents + self-improve loop) | The "wow moment" working reliably |
+| H7–H9 | 2h | **Mega-prompt #4** (child app the agents "build" + Token Company ledger or fallback) | Mini-app deployed that the other agents can attack |
+| H9–H11 | 2h | **Mega-prompt #5** (QA agent with Sai/SimuLang) + fulfill the Sai prize social requirements (#SaiCal) | QA agent really breaks the app |
+| H11–H13 | 2h | **Mega-prompt #6** (Growth agent with Browserbase/Stagehand) | Growth agent gets real "users" |
+| H13–H14 | 1h | Food / real break — it's not optional, you make worse technical decisions when tired | — |
+| H14–H15.5 | 1.5h | **Mega-prompt #7** (visual polish) + demo rehearsal + record a backup video | Demo rehearsed at least twice |
+| H15.5–H16.5 | 1h | **Mega-prompt #8** (Claude Code writes the Devpost submission) + final checklist | Submission sent, NOT at the last minute |
+| H16.5–H17 | 30 min | Buffer — fix what broke, breathe | — |
 
 ---
 
-## 6. LOS MEGA-PROMPTS
+## 6. THE MEGA-PROMPTS
 
-Cada uno se pega completo en Claude Code como una sola instrucción. Están escritos para que Claude Code actúe de forma autónoma — tome decisiones razonables sin parar a preguntarles cada detalle menor.
+Each one is pasted in full into Claude Code as a single instruction. They're written so Claude Code acts autonomously — makes reasonable decisions without stopping to ask you about every minor detail.
 
 ### Mega-prompt #1 — Scaffolding
 
 ```
-Eres el ingeniero principal de "El Mercadito de AI" (nombre tecnico/slug en codigo: mercadito), un marketplace en vivo donde agentes de IA
-se contratan entre sí. Construye el scaffolding completo del monorepo, tomando
-decisiones razonables sin pedirme confirmación en cada paso.
+You are the lead engineer of "The AI Mercadito" (technical name/slug in code: mercadito), a live marketplace where AI agents
+hire each other. Build the complete monorepo scaffolding, making
+reasonable decisions without asking me for confirmation at every step.
 
-Estructura:
+Structure:
 - /web: Next.js 14 (App Router) + TypeScript + Tailwind + shadcn/ui. Deploy-ready
-  para Vercel. Página principal con un input grande "¿Qué app quieres construir?"
-  y un área debajo donde más adelante se va a renderizar la guerra de bids en
-  tiempo real (déjala como placeholder con un componente <BidStream />).
-- /orchestrator: Node + TypeScript, API routes (puede vivir dentro de /web/app/api
-  si es más rápido de desplegar todo junto en Vercel). Debe exponer:
-  - POST /api/jobs  → crea un "job" y lo publica en un canal Redis
-  - GET  /api/bids/stream → Server-Sent Events que reenvía mensajes del canal Redis
-- /agents: servicio Python separado con la librería `uagents` de Fetch.ai.
-  Crea 4 agentes vacíos por ahora (ux_agent, backend_agent, growth_agent,
-  qa_agent), cada uno con su propio address, listos para recibir un mensaje
-  tipo JobPosted (defínelo como modelo Pydantic) y por ahora solo loguéalo.
-- Configura variables de entorno para: REDIS_URL, ANTHROPIC_API_KEY,
-  SENTRY_DSN — usa un .env.example, NO hardcodees secretos.
-- Inicializa Sentry en /web y en /agents con un setup mínimo (no lo configures
-  a fondo todavía, solo que capture excepciones no manejadas).
-- Inicializa git, primer commit, y deja el proyecto corriendo localmente con
-  `npm run dev` y un README corto explicando cómo levantar todo.
+  for Vercel. Main page with a large input "What app do you want to build?"
+  and an area below where the real-time bidding war will later be rendered
+  (leave it as a placeholder with a <BidStream /> component).
+- /orchestrator: Node + TypeScript, API routes (can live inside /web/app/api
+  if it's faster to deploy everything together on Vercel). Must expose:
+  - POST /api/jobs  → creates a "job" and publishes it to a Redis channel
+  - GET  /api/bids/stream → Server-Sent Events that relays messages from the Redis channel
+- /agents: separate Python service with Fetch.ai's `uagents` library.
+  Create 4 empty agents for now (ux_agent, backend_agent, growth_agent,
+  qa_agent), each with its own address, ready to receive a JobPosted-type
+  message (define it as a Pydantic model) and for now just log it.
+- Configure environment variables for: REDIS_URL, ANTHROPIC_API_KEY,
+  SENTRY_DSN — use a .env.example, do NOT hardcode secrets.
+- Initialize Sentry in /web and in /agents with a minimal setup (don't configure
+  it deeply yet, just have it capture unhandled exceptions).
+- Initialize git, first commit, and leave the project running locally with
+  `npm run dev` and a short README explaining how to bring everything up.
 
-No me preguntes por preferencias de nomenclatura de archivos, sigue convenciones
-estándar de Next.js/TypeScript. Sí dime al final qué decisiones tomaste y qué
-falta para conectar Redis real.
+Don't ask me about file naming preferences, follow standard Next.js/TypeScript
+conventions. Do tell me at the end what decisions you made and what's
+missing to connect real Redis.
 ```
 
-### Mega-prompt #2 — Motor de bidding + Redis + visualización en vivo
+### Mega-prompt #2 — Bidding engine + Redis + live visualization
 
 ```
-Ahora construye el corazón de El Mercadito de AI: la guerra de bids en tiempo real.
+Now build the heart of The AI Mercadito: the real-time bidding war.
 
-1. Cuando se hace POST /api/jobs con una descripción de app, publica un evento
-   JobPosted en el canal Redis `marketplace:bids` con un job_id único.
+1. When a POST /api/jobs is made with an app description, publish a
+   JobPosted event to the Redis channel `marketplace:bids` with a unique job_id.
 
-2. Crea una función `generateBid(persona, jobDescription)` que llama a la API
-   de Claude (modelo Haiku, claude-haiku-4-5) con un system prompt distinto
-   por persona (UX Agent, Backend Agent, Growth Agent, QA Agent — cada uno con
-   personalidad propia, ej. "Backend Agent es directo, cotiza rápido, presume
-   velocidad"). Debe devolver JSON estructurado: { price_tokens, eta_minutes,
-   confidence, pitch (máx 20 palabras) }. Usa structured output / tool use de
-   Claude para forzar el JSON, no parseo de texto libre.
+2. Create a function `generateBid(persona, jobDescription)` that calls the Claude
+   API (Haiku model, claude-haiku-4-5) with a different system prompt
+   per persona (UX Agent, Backend Agent, Growth Agent, QA Agent — each with
+   its own personality, e.g. "Backend Agent is direct, quotes fast, brags about
+   speed"). It must return structured JSON: { price_tokens, eta_minutes,
+   confidence, pitch (max 20 words) }. Use Claude's structured output / tool use
+   to force the JSON, not free-text parsing.
 
-3. Simula la competencia: cuando llega un JobPosted, dispara generateBid en
-   paralelo para las 4 personas, y publica cada bid en el canal Redis apenas
-   esté listo (no esperes a que terminen todas — así se ve la guerra en vivo,
-   bids apareciendo uno por uno con timestamps distintos).
+3. Simulate the competition: when a JobPosted arrives, fire generateBid in
+   parallel for the 4 personas, and publish each bid to the Redis channel as soon
+   as it's ready (don't wait for all of them to finish — that's how the war looks
+   live, bids appearing one by one with different timestamps).
 
-4. En el frontend, el componente <BidStream /> debe consumir el SSE de
-   /api/bids/stream y animar cada bid apareciendo como una tarjeta (estilo
-   chat/ticker), con un botón "Aprobar" por bid. Cuando el usuario aprueba un
-   bid, hazlo POST a /api/bids/:id/approve.
+4. In the frontend, the <BidStream /> component must consume the SSE from
+   /api/bids/stream and animate each bid appearing as a card (chat/ticker
+   style), with an "Approve" button per bid. When the user approves a
+   bid, POST it to /api/bids/:id/approve.
 
-5. Guarda cada bid en Redis no solo como pub/sub efímero sino persistido en
-   una lista/hash, para poder mostrar el historial completo de la ronda.
+5. Save each bid in Redis not just as ephemeral pub/sub but persisted in
+   a list/hash, to be able to show the full history of the round.
 
-Sé agresivo optimizando para que se vea vivo y rápido — la prioridad #1 de
-este prompt es que la demo visual de "agentes compitiendo" se sienta real,
-no que sea perfecto.
+Be aggressive optimizing for it to look live and fast — priority #1 of
+this prompt is that the visual demo of "agents competing" feels real,
+not that it's perfect.
 ```
 
-### Mega-prompt #3 — Sentry + Fetch.ai + loop de auto-mejora (el momento wow)
+### Mega-prompt #3 — Sentry + Fetch.ai + self-improve loop (the wow moment)
 
 ```
-Vamos a construir el momento más importante del demo: un agente que pierde
-o falla, y se auto-mejora en vivo. Esto NO puede depender del azar de un LLM —
-diséñalo para que sea confiablemente reproducible en una demo de 5 minutos.
+We're going to build the most important moment of the demo: an agent that loses
+or fails, and self-improves live. This must NOT depend on the randomness of an LLM —
+design it to be reliably reproducible in a 5-minute demo.
 
-1. Conecta los 4 agentes uAgents reales (Fetch.ai, en /agents) al flujo: cuando
-   reciben JobPosted, ellos mismos llaman a generateBid y responden con
-   BidSubmitted al orchestrator (en vez de que el orchestrator simule todo).
+1. Connect the 4 real uAgents (Fetch.ai, in /agents) to the flow: when
+   they receive JobPosted, they themselves call generateBid and respond with
+   BidSubmitted to the orchestrator (instead of the orchestrator simulating everything).
 
-2. Crea un escenario determinista: el Backend Agent, en su PRIMER intento de
-   bid para el job de demo, debe "fallar" de forma controlada — por ejemplo,
-   su estimación de precio causa una excepción a propósito documentada (usa
-   una bandera/flag interna tipo FORCE_FIRST_ATTEMPT_FAIL, NO algo que
-   dependa de que Claude se equivoque solo). Captura esa excepción con
-   Sentry, etiquetada con agent_id="backend_agent", bid_id, round=1.
+2. Create a deterministic scenario: the Backend Agent, on its FIRST attempt to
+   bid for the demo job, must "fail" in a controlled way — for example,
+   its price estimate causes an intentional, documented exception (use
+   an internal flag like FORCE_FIRST_ATTEMPT_FAIL, NOT something that
+   depends on Claude making a mistake on its own). Capture that exception with
+   Sentry, tagged with agent_id="backend_agent", bid_id, round=1.
 
-3. Cuando Sentry captura ese error, el mismo código (sin webhook externo,
-   directo en el catch) dispara una segunda llamada a Claude (Haiku) con el
-   mensaje de error como contexto: "tu intento anterior falló por X, genera
-   un bid mejorado". Publica este segundo bid en Redis marcado como
-   round=2, mejorado, con un pequeño texto visible tipo "🔄 Backend Agent
-   se auto-corrigió".
+3. When Sentry captures that error, the same code (no external webhook,
+   directly in the catch) triggers a second Claude call (Haiku) with the
+   error message as context: "your previous attempt failed because of X, generate
+   an improved bid". Publish this second bid to Redis marked as
+   round=2, improved, with a small visible text like "🔄 Backend Agent
+   self-corrected".
 
-4. En el frontend, cuando un bid tiene round=2, muéstralo con una animación
-   distinta (ej. aparece tachado el anterior, aparece el nuevo con un
-   badge "auto-mejorado").
+4. In the frontend, when a bid has round=2, show it with a different
+   animation (e.g. the previous one appears struck through, the new one appears with
+   an "auto-improved" badge).
 
-Documenta claramente en el código (comentario corto) que el fallo del
-round=1 es intencional para la demo — no quiero que parezca que ocultamos
-un bug real, sino que es una feature de resiliencia diseñada a propósito.
+Clearly document in the code (a short comment) that the round=1 failure
+is intentional for the demo — I don't want it to look like we're hiding
+a real bug, but that it's a deliberately designed resilience feature.
 ```
 
-### Mega-prompt #4 — La app hija + ledger de tokens
+### Mega-prompt #4 — The child app + token ledger
 
 ```
-Construye lo que los agentes ganadores "entregan": una mini-app real,
-desplegable, simple (ej. un formulario + lista, tipo "Airbnb para
-estacionamientos" con 1 página de crear listing y 1 de verlas). No necesita
-ser elaborada — necesita EXISTIR de verdad, con una URL pública en Vercel,
-para que los agentes QA y Growth puedan interactuar con ella de verdad más
-adelante.
+Build what the winning agents "deliver": a real, deployable, simple
+mini-app (e.g. a form + list, like "Airbnb for parking spots" with 1 page to
+create a listing and 1 to view them). It doesn't need to be
+elaborate — it needs to actually EXIST, with a public URL on Vercel,
+so the QA and Growth agents can really interact with it later.
 
-1. Genera esta mini-app como un proyecto Next.js separado dentro de
-   /generated-app, con 2-3 endpoints reales (crear listing, listar, signup
-   de prueba), base de datos simple (puede ser el mismo Redis o SQLite local
-   — prioriza velocidad de setup sobre elegancia).
-2. Despliega esta app a Vercel con un dominio propio, distinto del dashboard
-   principal de El Mercadito de AI.
-3. Construye un ledger de tokens simple respaldado en Redis: cuando un bid
-   es aprobado, debita el precio del bid de un balance del "cliente" y lo
-   acredita al agente ganador. Expón esto en el frontend principal como una
-   pequeña tabla "Token Ledger".
-4. Deja un comentario TODO claro marcando dónde se conectaría la API real de
-   The Token Company si la consiguen del booth — que sea fácil de
-   intercambiar sin tocar el resto del sistema (una sola función
-   `settleTokens()` que pueden reimplementar).
+1. Generate this mini-app as a separate Next.js project inside
+   /generated-app, with 2-3 real endpoints (create listing, list, test
+   signup), simple database (can be the same Redis or local SQLite
+   — prioritize setup speed over elegance).
+2. Deploy this app to Vercel with its own domain, distinct from the main
+   The AI Mercadito dashboard.
+3. Build a simple token ledger backed by Redis: when a bid is
+   approved, debit the bid price from a "client" balance and
+   credit it to the winning agent. Expose this in the main frontend as a
+   small "Token Ledger" table.
+4. Leave a clear TODO comment marking where The Token Company's real API
+   would connect if you get it from the booth — make it easy to
+   swap without touching the rest of the system (a single
+   `settleTokens()` function they can reimplement).
 
-Al final dame la URL local y, si configuré Vercel CLI, la URL pública.
+At the end give me the local URL and, if I configured the Vercel CLI, the
+public URL.
 ```
 
-### Mega-prompt #5 — Agente QA con Sai / SimuLang
+### Mega-prompt #5 — QA Agent with Sai / SimuLang
 
 ```
-Implementa al QA Agent usando SimuLang (@simular-ai/simulib-js) para que
-de verdad abra la mini-app desplegada (la URL de /generated-app en Vercel)
-en un navegador real y la pruebe.
+Implement the QA Agent using SimuLang (@simular-ai/simulib-js) so it
+really opens the deployed mini-app (the /generated-app URL on Vercel)
+in a real browser and tests it.
 
-1. Escribe un script TypeScript que:
-   - Abra la URL pública de la app generada
-   - Navegue al formulario de "crear listing"
-   - Intente un caso normal (debería funcionar)
-   - Intente un caso límite que probablemente rompa algo (ej. campo vacío,
-     precio negativo, texto extremadamente largo)
-   - Capture un screenshot del resultado con screenshotFull()
-   - Devuelva un JSON estructurado: { bugs_found: [...], screenshot_path }
+1. Write a TypeScript script that:
+   - Opens the public URL of the generated app
+   - Navigates to the "create listing" form
+   - Tries a normal case (should work)
+   - Tries an edge case that will probably break something (e.g. empty field,
+     negative price, extremely long text)
+   - Captures a screenshot of the result with screenshotFull()
+   - Returns a structured JSON: { bugs_found: [...], screenshot_path }
 
-2. Conecta este script al flujo de El Mercadito de AI: cuando el job del QA Agent es
-   "ejecutado" (después de ganar su bid), corre este script real y publica
-   el resultado en Redis como un evento `qa:report`, visible en el frontend
-   como una tarjeta "QA Agent encontró: [bug]" con el screenshot.
+2. Connect this script to The AI Mercadito flow: when the QA Agent's job is
+   "executed" (after winning its bid), run this real script and publish
+   the result to Redis as a `qa:report` event, visible in the frontend
+   as a "QA Agent found: [bug]" card with the screenshot.
 
-3. Si SimuLang tiene fricción de setup en los próximos 20 minutos, dime
-   exactamente en qué paso te trabaste y seguimos con la documentación de
-   docs.simular.ai/simulang/simulang-claude-code en paralelo — no te
-   quedes atascado más de 20 minutos en un solo problema de configuración,
-   avísame.
+3. If SimuLang has setup friction in the next 20 minutes, tell me
+   exactly which step you got stuck on and we'll continue with the documentation at
+   docs.simular.ai/simulang/simulang-claude-code in parallel — don't
+   stay stuck more than 20 minutes on a single configuration problem,
+   let me know.
 
-Al final, recuérdame que el equipo tiene que postear en X o LinkedIn con
-#SaiCal etiquetando a la cuenta oficial de Sai — es requisito del premio,
-no opcional.
+At the end, remind me that the team has to post on X or LinkedIn with
+#SaiCal tagging Sai's official account — it's a prize requirement,
+not optional.
 ```
 
-### Mega-prompt #6 — Agente Growth con Browserbase / Stagehand
+### Mega-prompt #6 — Growth Agent with Browserbase / Stagehand
 
 ```
-Implementa al Growth Agent usando Stagehand (@browserbasehq/stagehand) para
-que realice una acción real en la web — no simulada.
+Implement the Growth Agent using Stagehand (@browserbasehq/stagehand) so
+it performs a real action on the web — not simulated.
 
-1. Usando Stagehand sobre Browserbase, escribe una tarea que:
-   - Abra la página de signup/landing de la mini-app generada (la misma URL
-     de Vercel del mega-prompt #4)
-   - Llene el formulario de signup con 3 usuarios de prueba con datos
-     realistas pero claramente ficticios (nombres random, emails tipo
+1. Using Stagehand on top of Browserbase, write a task that:
+   - Opens the signup/landing page of the generated mini-app (the same Vercel
+     URL from mega-prompt #4)
+   - Fills out the signup form with 3 test users with realistic but
+     clearly fictional data (random names, emails like
      test+1@example.com)
-   - Confirme que los signups aparecen reflejados en la app (ej. un
-     contador de usuarios sube)
+   - Confirms the signups are reflected in the app (e.g. a user
+     counter goes up)
 
-2. Publica el resultado en Redis como evento `growth:report`, visible en
-   el frontend como "Growth Agent consiguió 3 usuarios reales" con un
+2. Publish the result to Redis as a `growth:report` event, visible in
+   the frontend as "Growth Agent got 3 real users" with a
    timestamp.
 
-3. Usa explícitamente Stagehand (no Playwright puro) para que cuente como
-   "powered by Browserbase platform" según el criterio del premio.
+3. Use Stagehand explicitly (not pure Playwright) so it counts as
+   "powered by Browserbase platform" per the prize criteria.
 
-Si el tiempo apremia, prioriza que ESTA tarea corra de forma confiable
-sobre que sea elaborada — un signup real funcionando vale más que un
-flujo complejo que falla en vivo.
+If time is tight, prioritize getting THIS task to run reliably
+over making it elaborate — a real working signup is worth more than a
+complex flow that fails live.
 ```
 
-### Mega-prompt #7 — Polish visual
+### Mega-prompt #7 — Visual polish
 
 ```
-Dale un pase de diseño serio a El Mercadito de AI. Ahora mismo es funcional pero genérico
-y necesita verse como un producto real, no un prototipo de hackathon.
+Give The AI Mercadito a serious design pass. Right now it's functional but generic
+and needs to look like a real product, not a hackathon prototype.
 
-- Define una identidad visual: paleta de color, tipografía, y un concepto
-  visual claro para "marketplace de agentes" (piensa en una mezcla entre
-  terminal de trading en vivo y un chat — números, tickers, badges de
-  estado, animaciones sutiles de entrada para cada bid).
-- Asegúrate que la guerra de bids se sienta "viva": transiciones suaves,
-  no saltos bruscos, indicadores de estado claros (pujando / ganó / perdió /
-  auto-mejorando).
-- Revisa contraste y legibilidad en proyector — los jueces ven esto desde
-  lejos en una mesa, no en su monitor.
-- Agrega un header simple con el nombre "El Mercadito de AI" y un one-liner del pitch.
-- No introduzcas dependencias nuevas pesadas ni rehagas la arquitectura —
-  esto es pulido visual, no refactor.
+- Define a visual identity: color palette, typography, and a clear
+  visual concept for "agent marketplace" (think a mix between a live
+  trading terminal and a chat — numbers, tickers, status badges,
+  subtle entry animations for each bid).
+- Make sure the bidding war feels "alive": smooth transitions,
+  no abrupt jumps, clear status indicators (bidding / won / lost /
+  self-improving).
+- Review contrast and legibility on a projector — judges see this from
+  a distance at a table, not on their monitor.
+- Add a simple header with the name "The AI Mercadito" and a one-liner of the pitch.
+- Don't introduce heavy new dependencies or redo the architecture —
+  this is visual polish, not a refactor.
 ```
 
-### Mega-prompt #8 — Submission de Devpost
+### Mega-prompt #8 — Devpost submission
 
 ```
-Escribe el texto completo de nuestra submission para Devpost, basado en todo
-lo que construimos en este repo (revisa el código y los README si necesitas
-refrescar detalles). Necesito:
+Write the full text of our Devpost submission, based on everything
+we built in this repo (review the code and READMEs if you need to
+refresh details). I need:
 
-1. Elevator pitch de 2-3 oraciones.
-2. Descripción detallada: el problema, cómo funciona El Mercadito de AI, qué stack
-   usamos y por qué, y qué specifically construimos en estas 17 horas
-   (sé honesto y específico, no genérico).
-3. Una lista clara de qué sponsors integramos y CÓMO exactamente (Redis,
+1. A 2-3 sentence elevator pitch.
+2. Detailed description: the problem, how The AI Mercadito works, what stack
+   we used and why, and what specifically we built in these 17 hours
+   (be honest and specific, not generic).
+3. A clear list of which sponsors we integrated and HOW exactly (Redis,
    Sentry, Sai/SimuLang, Browserbase/Stagehand, Fetch.ai uAgents, Claude
-   Code) — los jueces de cada sponsor leen esto buscando su tecnología
-   específica, no la escondas en prosa genérica.
-4. Un párrafo corto de "qué sigue" (roadmap) que mencione lo que
-   deliberadamente NO construimos por tiempo (ej. integración completa de
-   Token Company, registro en Agentverse) — mejor ser honestos que parecer
-   que mentimos sobre el alcance.
+   Code) — each sponsor's judges read this looking for their specific
+   technology, don't hide it in generic prose.
+4. A short "what's next" (roadmap) paragraph that mentions what we
+   deliberately did NOT build due to time (e.g. full Token Company
+   integration, Agentverse registration) — better to be honest than to seem
+   like we're lying about the scope.
 
-Formato listo para copiar/pegar en el campo de descripción de Devpost.
+Format ready to copy/paste into the Devpost description field.
 ```
 
 ---
 
-## 7. GUION DE DEMO (5 minutos — los jueces solo tienen eso por mesa)
+## 7. DEMO SCRIPT (5 minutes — judges only have that per table)
 
-1. **(30s)** Pitch de 2 líneas + escribe la idea de la app en vivo frente a los jueces.
-2. **(60s)** La guerra de bids aparece — déjala hablar sola, no narren cada bid, señalen el momento en que un agente sube/baja su precio.
-3. **(45s)** Aprueben un bid en vivo (humano en el loop, mencionen el paralelo con cómo Sai funciona con aprobaciones).
-4. **(60s)** El momento wow: el agente falla, Sentry lo captura, se auto-mejora. Aquí SÍ narren — esto es lo que van a recordar.
-5. **(60s)** QA Agent abre la app real y muestra el bug que encontró con screenshot. Growth Agent muestra usuarios reales conseguidos.
-6. **(30s)** Cierre: "todo esto, código incluido, lo escribió Claude Code en 17 horas — incluyendo este mismo pitch."
+1. **(30s)** 2-line pitch + type the app idea live in front of the judges.
+2. **(60s)** The bidding war appears — let it speak for itself, don't narrate every bid, point out the moment an agent raises/lowers its price.
+3. **(45s)** Approve a bid live (human in the loop, mention the parallel with how Sai works with approvals).
+4. **(60s)** The wow moment: the agent fails, Sentry captures it, it self-improves. Here DO narrate — this is what they'll remember.
+5. **(60s)** QA Agent opens the real app and shows the bug it found with a screenshot. Growth Agent shows real users acquired.
+6. **(30s)** Closing: "all of this, code included, was written by Claude Code in 17 hours — including this very pitch."
 
-**Plan B:** tengan un video grabado de un run exitoso completo. Si algo falla en vivo, no improvisen reparando frente al juez — digan "tenemos un run grabado, déjenme mostrarles" y sigan.
-
----
-
-## 8. CHECKLIST FINAL ANTES DE SUBMIT
-
-- [ ] Repo de GitHub público, con README claro
-- [ ] Imagen del proyecto subida a Devpost (requisito explícito)
-- [ ] Número de mesa incluido en la submission
-- [ ] Equipo completo agregado en Devpost (Diego + Juan)
-- [ ] Post social con #SaiCal enviado (requisito del premio Sai)
-- [ ] Submission enviado ANTES de las 11:00 AM PDT del domingo (no a las 10:59)
-- [ ] Verificar en consola de Anthropic que aún quedan créditos por si quieren hacer una llamada en vivo durante el demo
+**Plan B:** have a recorded video of a full successful run. If something fails live, don't improvise repairing in front of the judge — say "we have a recorded run, let me show you" and keep going.
 
 ---
 
-## 9. LO QUE HACEN EN LOS PRÓXIMOS 10 MINUTOS
+## 8. FINAL CHECKLIST BEFORE SUBMIT
 
-1. ~~Confirmen el nombre del proyecto~~ — ya está: **El Mercadito de AI**. En código usen el slug `mercadito` (carpetas, package.json, env vars) para no pelear con espacios y acentos.
-2. Creen el repo de GitHub (sugerencia de nombre: `mercadito-ai`).
-3. Diego va al booth de Fetch.ai y Token Company a preguntar por el brief específico de este hackathon (no está publicado online).
-4. Juan abre Claude Code y pega el Mega-prompt #1.
+- [ ] Public GitHub repo, with a clear README
+- [ ] Project image uploaded to Devpost (explicit requirement)
+- [ ] Table number included in the submission
+- [ ] Full team added on Devpost (Diego + Juan)
+- [ ] Social post with #SaiCal sent (Sai prize requirement)
+- [ ] Submission sent BEFORE 11:00 AM PDT on Sunday (not at 10:59)
+- [ ] Verify in the Anthropic console that there are still credits left in case you want to make a live call during the demo
 
-Vámonos.
+---
+
+## 9. WHAT YOU DO IN THE NEXT 10 MINUTES
+
+1. ~~Confirm the project name~~ — done: **The AI Mercadito**. In code use the slug `mercadito` (folders, package.json, env vars) to avoid fighting with spaces and accents.
+2. Create the GitHub repo (suggested name: `mercadito-ai`).
+3. Diego goes to the Fetch.ai and Token Company booths to ask about this hackathon's specific brief (not published online).
+4. Juan opens Claude Code and pastes Mega-prompt #1.
+
+Let's go.
