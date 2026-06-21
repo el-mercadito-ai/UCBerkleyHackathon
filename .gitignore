@@ -1,5 +1,25 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Env
+.env
+.env*.local
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
 .pnpm-store/
 
 # Next.js build output
@@ -20,6 +40,17 @@ build/
 # Logs
 *.log
 npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sentry
+.sentryclirc
+
+# Editor
+.vscode/
+.idea/
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*

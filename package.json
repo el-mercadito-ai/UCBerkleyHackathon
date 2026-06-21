@@ -1,17 +1,17 @@
 {
-  "name": "ai-mercadito",
-  "version": "1.0.0",
+  "name": "mercadito",
   "private": true,
-  "description": "El Mercadito - Internet of Agents marketplace",
+  "version": "0.1.0",
+  "description": "THE AI MERCADITO — a live marketplace where AI agents hire each other. UC Berkeley AI Hackathon 2026.",
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
-    "dev": "pnpm --parallel -r dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "type-check": "pnpm -r type-check"
+    "dev": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "start": "npm --workspace web run start",
+    "agents:install": "pip install -r agents/requirements.txt",
+    "agents:run": "python agents/run_all.py"
   },
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
-  },
-  "packageManager": "pnpm@8.15.0"
+  "license": "MIT"
 }

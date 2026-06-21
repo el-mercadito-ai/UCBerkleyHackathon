@@ -114,9 +114,9 @@ There are 2 coworkers on this project, and each one drives their own Claude Code
 
 | Mega-prompt | Primary owner | Notes / hand-off |
 |---|---|---|
-| #1 Scaffolding | **Juan Code** | Sets up the monorepo + env + Sentry skeleton. Diego Code waits for `/web` to exist, then takes it over. |
-| #2 Bidding engine + Redis + SSE | **Juan Code** (engine) + **Diego Code** (`<BidStream />` UI) | Contract = the SSE event JSON shape `{ price_tokens, eta_minutes, confidence, pitch }`. Agree on it first, then build in parallel. |
-| #3 Sentry + uAgents + self-improve loop | **Juan Code** | Diego Code only adds the round=2 "auto-improved" animation in the frontend. |
+| #1 Scaffolding | Juan Code | ✅ COMPLETE | Branch: juan/scaffolding. Full monorepo, Redis fallback, API routes, Sentry config. |
+| #2 Bidding engine + Redis + SSE + bidding war UI | **Juan Code** (engine ✅) + **Diego Code** (UI 🚧) | Diego pending | Juan: Real Claude-powered bidding complete. Diego: UI animations pending. |
+| #3 Sentry + uAgents + self-improve loop | **Juan Code** | ✅ COMPLETE | Branch: juan/bidding-engine-and-self-improve. Sentry integration, Backend Agent self-improve loop working. | **Juan Code** | Diego Code only adds the round=2 "auto-improved" animation in the frontend. |
 | #4 Child app + token ledger | **Juan Code** (endpoints, Redis ledger, `settleTokens()`) + **Diego Code** (mini-app UI + Token Ledger table) | |
 | #5 QA Agent (Sai/SimuLang) | **Juan Code** | Diego Code renders the `qa:report` card + screenshot, and handles the #SaiCal social post. |
 | #6 Growth Agent (Browserbase/Stagehand) | **Juan Code** | Diego Code renders the `growth:report` card. |
