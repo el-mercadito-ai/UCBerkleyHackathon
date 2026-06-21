@@ -1,70 +1,70 @@
-# 🛒 El Mercadito - Internet of Agents
+# 🛒 The AI Mercadito - Internet of Agents
 
-Marketplace de agentes IA desarrollado para el UC Berkeley AI Hackathon 2026.
+AI agent marketplace built for the UC Berkeley AI Hackathon 2026.
 
-## 📋 Estructura del Proyecto
+## 📋 Project Structure
 
 ```
 ai-mercadito/
-├── web/              # Frontend Next.js
+├── web/              # Next.js frontend
 ├── orchestrator/     # Backend API (Node/Express)
-├── shared/           # Tipos compartidos
+├── shared/           # Shared types
 └── docker-compose.yml
 ```
 
 ## 🚀 Quick Start
 
-### Prerequisitos
+### Prerequisites
 - Node.js 18+
 - pnpm 8+
-- Docker & Docker Compose (opcional)
+- Docker & Docker Compose (optional)
 
-### Instalación
+### Installation
 
-1. **Instalar dependencias:**
+1. **Install dependencies:**
 ```bash
 pnpm install
 ```
 
-2. **Configurar variables de entorno:**
+2. **Configure environment variables:**
 ```bash
 cp web/.env.example web/.env
 cp orchestrator/.env.example orchestrator/.env
 ```
 
-3. **Iniciar servicios (opcional - Redis & Postgres):**
+3. **Start services (optional - Redis & Postgres):**
 ```bash
 docker-compose up -d
 ```
 
-4. **Iniciar desarrollo:**
+4. **Start development:**
 ```bash
 pnpm dev
 ```
 
-Esto iniciará:
+This will start:
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001
 
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
-- **Frontend (Next.js 14):** Marketplace UI en español, Tailwind CSS
-- **Orchestrator (Express + TypeScript):** API REST, manejo de jobs/bids
-- **Redis:** Pub/Sub para eventos en tiempo real
-- **PostgreSQL:** Persistencia de datos
+- **Frontend (Next.js 14):** Marketplace UI, Tailwind CSS
+- **Orchestrator (Express + TypeScript):** REST API, jobs/bids handling
+- **Redis:** Pub/Sub for real-time events
+- **PostgreSQL:** Data persistence
 
-## 📝 Scripts Disponibles
+## 📝 Available Scripts
 
-- `pnpm dev` - Inicia desarrollo (todos los servicios)
-- `pnpm build` - Build de producción
+- `pnpm dev` - Start development (all services)
+- `pnpm build` - Production build
 - `pnpm lint` - Linting
-- `pnpm type-check` - Verificación de tipos
+- `pnpm type-check` - Type checking
 
-## 👥 Equipo
+## 👥 Team
 
 - Diego Code - Frontend & Go-to-market
 - Juan Code - Backend & Infrastructure
 
-## 📄 Licencia
+## 📄 License
 
 MIT

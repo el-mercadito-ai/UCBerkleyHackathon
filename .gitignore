@@ -6,6 +6,13 @@ node_modules/
 .next/
 out/
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Stray npm/yarn lockfiles (this repo uses pnpm)
+package-lock.json
+yarn.lock
+
 # Production builds
 dist/
 build/

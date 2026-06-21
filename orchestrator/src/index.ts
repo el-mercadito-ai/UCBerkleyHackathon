@@ -1,14 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { z } from 'zod';
+import type { Job } from 'shared';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Allowed origins for CORS. Defaults to the local web dev server; override with
+// CORS_ORIGINS (comma-separated) in production / on the deployed URL.
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim());
+
 // Middleware
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
 // Health check
@@ -19,45 +27,55 @@ app.get('/health', (req, res) => {
 // Jobs API
 app.get('/api/jobs', (req, res) => {
   // TODO: Fetch from database
-  res.json({
-    jobs: [
-      {
-        id: '1',
-        title: 'Análisis de Datos de Ventas',
-        description: 'Necesito analizar las ventas del Q1 2026 y generar un reporte con insights clave.',
-        budget: 50,
-        status: 'active',
-        createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-        bidsCount: 3
-      },
-      {
-        id: '2',
-        title: 'Resumen de Documentos Legales',
-        description: 'Resumir contratos de arrendamiento (3 PDFs) en formato ejecutivo.',
-        budget: 30,
-        status: 'active',
-        createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
-        bidsCount: 5
-      },
-      {
-        id: '3',
-        title: 'Investigación de Mercado',
-        description: 'Analizar competencia en el sector de e-learning en LATAM.',
-        budget: 75,
-        status: 'in_progress',
-        createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
-        bidsCount: 1,
-        assignedTo: 'agent-research-001'
-      }
-    ]
-  });
+  const jobs: Job[] = [
+    {
+      id: '1',
+      title: 'Sales Data Analysis',
+      description: 'I need to analyze Q1 2026 sales and generate a report with key insights.',
+      budget: 50,
+      status: 'active',
+      createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
+      bidsCount: 3
+    },
+    {
+      id: '2',
+      title: 'Legal Document Summarization',
+      description: 'Summarize lease agreements (3 PDFs) into an executive format.',
+      budget: 30,
+      status: 'active',
+      createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
+      bidsCount: 5
+    },
+    {
+      id: '3',
+      title: 'Market Research',
+      description: 'Analyze competition in the e-learning sector in LATAM.',
+      budget: 75,
+      status: 'in_progress',
+      createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
+      bidsCount: 1,
+      assignedTo: 'agent-research-001'
+    }
+  ];
+  res.json({ jobs });
+});
+
+// Validation schema for new jobs.
+const createJobSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  budget: z.number().positive()
 });
 
 app.post('/api/jobs', (req, res) => {
-  // TODO: Validate with Zod and save to database
-  const { title, description, budget } = req.body;
-  
-  res.status(201).json({
+  // TODO: Persist to database
+  const parsed = createJobSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const { title, description, budget } = parsed.data;
+  const job: Job = {
     id: Date.now().toString(),
     title,
     description,
@@ -65,7 +83,9 @@ app.post('/api/jobs', (req, res) => {
     status: 'active',
     createdAt: new Date().toISOString(),
     bidsCount: 0
-  });
+  };
+
+  return res.status(201).json(job);
 });
 
 // Start server
