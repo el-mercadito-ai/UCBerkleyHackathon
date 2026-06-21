@@ -133,18 +133,52 @@ mercadito/
 
 ---
 
+## Progress Tracker
+
+| Mega-prompt | Owner | Status | Branch | Notes |
+|---|---|---|---|---|
+| #1 Scaffolding | Juan | ✅ DONE | `juan/scaffolding` | Complete monorepo, Redis fallback, API routes, frontend skeleton |
+| #2 Bidding engine + Redis + SSE + bidding war UI | Juan (engine) ✅ / Diego (UI) 🚧 | 🚧 IN PROGRESS | `juan/bidding-engine-and-self-improve` | Real Claude-powered bidding complete. Diego: UI animations pending |
+| #3 Sentry + uAgents + self-improve loop | Juan | ✅ DONE | `juan/bidding-engine-and-self-improve` | Sentry integration, self-improve loop, Python uAgents skeleton |
+| #4 Child app + token ledger | Juan (endpoints) + Diego (UI) | 🔜 NEXT | | Token ledger endpoints + UI table |
+| #5 QA Agent (Sai/SimuLang) | Juan | 🔜 NEXT | | QA agent clicks generated app, publishes report |
+| #6 Browserbase/Stagehand wiring | Juan | 🔜 OPTIONAL | | Fallback to screenshots if not done |
+| #7 Fetch.ai booth integration | Juan | ⏸️ TBD | | Depends on booth brief |
+| #8 Token Company real API | Juan | ⏸️ TBD | | Depends on booth API docs |
+
+---
+
+## What's working right now
+
+### ✅ Scaffolding (Mega-prompt #1)
+- Complete Next.js monorepo with TypeScript + Tailwind
+- Redis client with **in-memory fallback** (zero infrastructure needed)
+- API routes: POST /api/jobs, GET /api/bids/stream (SSE), GET /api/health
+- Frontend skeleton (input + live event feed)
+- Sentry config (optional, no crash if unset)
+
+### ✅ Real Bidding Engine (Mega-prompt #2)
+- **4 agents (UX, Backend, Growth, QA) use Claude API** to generate competitive bids
+- Each agent: custom system prompt → price, ETA, confidence, pitch
+- Backend Agent **intentionally bids too high** on round 1 (demonstrates resilience)
+- Real-time bidding replaces simulated version
+
+### ✅ Self-Improve Loop (Mega-prompt #3)
+- **Sentry integration**: captures agent failures ("the nervous system")
+- Backend Agent loses → self-diagnoses via Claude
+- **Round 2 bid**: improved price + confidence based on failure reason
+- Frontend can show "🔄 auto-improved" badge (Diego's UI task)
+
+### 🚧 In Progress (Diego)
+- Bidding war UI animations (bids sliding in, confidence bars)
+- "Auto-improved" badge for round=2 bids
+- Token ledger table UI
+- Child app renderer
+
+---
+
 ## What's missing (TODOs by Mega-prompt)
 
-| Mega-prompt | Owner | Status |
-|---|---|---|
-| #1 Scaffolding | Juan | ✅ DONE (this scaffolding) |
-| #2 Bidding engine + Redis + SSE + bidding war UI | Juan (engine) + Diego (UI) | 🚧 Next |
-| #3 Sentry + uAgents + self-improve loop | Juan | 🚧 Blocked on #2 |
-| #4 Child app generator + token ledger UI | Juan (endpoints) + Diego (UI) | 🚧 Blocked on #2 |
-| #5 QA Agent (Sai/SimuLang integration) | Juan | 🚧 Blocked on #4 |
-| #6 Browserbase/Stagehand wiring | Juan | 🚧 Optional (fallback to screenshots) |
-| #7 Fetch.ai booth integration (if custom brief exists) | Juan | 🚧 TBD at the booth |
-| #8 Token Company real API | Juan | 🚧 TBD at the booth |
 
 ---
 
