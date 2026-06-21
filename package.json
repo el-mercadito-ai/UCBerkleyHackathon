@@ -1,0 +1,17 @@
+{
+  "name": "ai-mercadito",
+  "version": "1.0.0",
+  "private": true,
+  "description": "El Mercadito - Internet of Agents marketplace",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "type-check": "pnpm -r type-check"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
