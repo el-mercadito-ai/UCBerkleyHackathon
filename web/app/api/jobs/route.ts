@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
     };
 
     await publishEvent({ type: "job.posted", data: job });
-    // Kick off bids (scaffolding simulator; real engine arrives in Mega-prompt #2).
-    void simulateBids(job);
+    
+    // Kick off REAL bidding (Mega-prompt #2: Claude-powered agents)
+    void runBiddingRound(job, 1);
 
     return NextResponse.json({ ok: true, job }, { status: 201 });
   } catch (err) {
